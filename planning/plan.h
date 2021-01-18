@@ -10,7 +10,6 @@
 #include <boost/heap/binomial_heap.hpp>
 
 struct CompareNodes {
-  /// Sorting 2D nodes by increasing C value - the total estimated cost
   bool operator()(const node* lhs, const node* rhs) const {
     return lhs->getC() > rhs->getC();
   }

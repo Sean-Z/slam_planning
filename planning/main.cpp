@@ -2,10 +2,7 @@
 #include "plan.h"
 int main()
 {
-    //std::cout << img.at<float>(0,0) << std::endl; // 显示某一个点的值
-    //std::cout << img.size() << std::endl;           // 地图尺寸361*181
     plan m_plan;
-
     cv::waitKey(0);
     return 0;
 }

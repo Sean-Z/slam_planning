@@ -4,8 +4,8 @@ plan::plan()
 {
     img = cv::imread("D:\\opencv\\2.tif",2);
 
-    width = img.cols;
-    height = img.rows;
+    width = img.cols - 1;
+    height = img.rows - 1;
     map = new double[width * height];
 
     // 构造地图
@@ -15,8 +15,6 @@ plan::plan()
             map[j + i * width] = img.at<float>(i,j);
         }
 
-//    std::cout << img.at<float>(50,100) << std::endl;
-//    std::cout << map[361*50+100] << std::endl;
 
     // 设置起始点和终止点
     start.x = 100;
@@ -29,6 +27,7 @@ plan::plan()
 
     // 开始规划
     Plannig();
+//    std::cout << "***" << std::endl;
 
     // opencv画轨迹
     for(int i = 0; i < path.size(); i++)
@@ -49,9 +48,9 @@ void plan::Plannig()
         std::cout << "start or end out of map range,process end！" << std::endl;
         return;
     }
+    //std::cout << img.at<float>()<<std::endl;
     std::cout << "start planning..."<<std::endl;
     nodes = new node[width * height];
-
     node* path_end = Astar();
     TracePath(path_end);
 
@@ -59,8 +58,6 @@ void plan::Plannig()
     {
         std::cout << "x: " << path[i].x << " y: " << path[i].y << std::endl;
     }
-
-
 }
 
 node* plan::Astar()
@@ -76,8 +73,11 @@ node* plan::Astar()
 
     boost::heap::binomial_heap<node*,boost::heap::compare<CompareNodes>> OpenList; //新建开始列表
 
-    // 对初始点进行操作
-    start.updateH(end);
+    // 对初始点进行操作，更新g值和k值
+    start.updateH(end,width,height);
+    start.updateK(img);
+
+    // 将初始点加入到openlist中，包括<1> 将该点标记为open,<2> 将该点放入到openlist中,<3> 将该点放入到node中
     start.open();
     OpenList.push(&start);
     iPred = start.setIdx(width);
@@ -88,45 +88,59 @@ node* plan::Astar()
 
     while (!OpenList.empty())
     {
+
         nPred = OpenList.top();         // 弹出节点
         iPred = nPred->setIdx(width);   // 获得节点序号
-        if (nodes[iPred].isClosed()) {
+        if (nodes[iPred].isClosed())
+        {
+            //std::cout <<"$$$"<<std::endl;
             OpenList.pop();             // 如果在闭式列表中，直接移除节点
             continue;
         }
-        else if (nodes[iPred].isOpen()) {
-            //如果在开式列表中，先加入到闭式列表
+        else if (nodes[iPred].isOpen())
+        {
+            // 如果在开式列表中，先加入到闭式列表
             nodes[iPred].close();
             nodes[iPred].discover();
-            // remove node from open list
+            //std::cout << "index: " << nPred->x << " " << nPred->y << std::endl;
+
+            // 将该点从openlist中删除
             OpenList.pop();
-            //如果发现了终点
+
+            // 如果发现了终点
             if(*nPred == end){
                 std::cout << "find end!" << std::endl;
                 return nPred;
             }
-            //否则继续搜索，扩充邻居节点啦
-            else{
-                for (int i = 0; i < node::dir; i++) {
-                    // 有可能的节点
-                    nSucc = nPred->createSuccessor(i);
-                    // 当前可能节点的索引
-                    iSucc = nSucc->setIdx(width);
-                    if(nSucc->isOnGrid(width, height) && map[iSucc] < 0.5 && !nodes[iSucc].isClosed()){
-                        nSucc->updateG();
+            // 否则继续搜索，扩充邻居节点
+            else
+            {
+                for (int i = 0; i < node::dir; i++)
+                {
+                    nSucc = nPred->createSuccessor(i);  // 有可能的节点
+                    iSucc = nSucc->setIdx(width);       // 当前可能节点的索引
+                    //if(nSucc->isOnGrid(width, height) && map[iSucc] < 0.6 && !nodes[iSucc].isClosed())
+                    if(nSucc->isOnGrid(width, height) && map[iSucc] < 0.5 && !nodes[iSucc].isClosed())
+                    {
+                        nSucc->updateG(width,height);
                         newG = nSucc->getG();
-                        if (!nodes[iSucc].isOpen() || newG < nodes[iSucc].getG()) {
-                            nSucc->updateH(end);
+                        //std::cout << nSucc->k << std::endl;
+                        if (!nodes[iSucc].isOpen() || newG < nodes[iSucc].getG())
+                        {
+                            nSucc->updateH(end,width,height);
+                            nSucc->updateK(img);
                             nSucc->open();
                             nodes[iSucc] = *nSucc;
                             OpenList.push(&nodes[iSucc]);
                             delete nSucc;
                         }
-                        else {
+                        else
+                        {
                             delete nSucc;
                         }
                     }
-                    else{
+                    else
+                    {
                         delete nSucc;
                     } // end of else
                 } // end of for
